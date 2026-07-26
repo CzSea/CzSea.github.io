@@ -1,3 +1,5 @@
+// app.js（完整修复版）
+// 功能：参数面板、风格模板、自由补充设定、保存/导出、生成≥长度的长篇人设
 (function () {
   'use strict';
 
@@ -96,6 +98,7 @@
       '为了保护他人隐瞒了真相',
       '曾为生存做出违背信念之事',
       '身体内藏别人不知道的弱点或诅咒',
+      
       '其实并非自己所说的身份',
       '曾参与过一场被封存的阴谋'
     ];
@@ -119,4 +122,215 @@
     // 自定义字段
     let customFields = [];
 
-    function escapeHtml(s){ return String(s || '').replace(/[&<>\
+    function escapeHtml(s){ return String(s || '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',\"'\":'&#39;'}[c])); }
+
+    function renderCustomList(){
+      if(!customList) return;
+      if(!customFields.length){ customList.innerHTML = '<div class=\"hint\">（尚未添加）</div>'; return; }
+      customList.innerHTML = '';
+      customFields.forEach((f, idx)=>{
+        const div = document.createElement('div'); div.className='custom-item';
+        const left = document.createElement('div'); left.innerHTML = `<span class=\"k\">${escapeHtml(f.k)}</span>: <span class=\"v\">${escapeHtml(f.v)}</span>`;
+        const actions = document.createElement('div');
+        const btnDel = document.createElement('button'); btnDel.textContent='删除'; btnDel.className='btn';
+        btnDel.onclick = ()=>{ customFields.splice(idx,1); renderCustomList(); };
+        actions.appendChild(btnDel);
+        div.appendChild(left); div.appendChild(actions);
+        customList.appendChild(div);
+      });
+    }
+
+    if(btnAddCustom) btnAddCustom.addEventListener('click', ()=>{
+      const k = (customKey.value || '').trim();
+      const v = (customValue.value || '').trim();
+      if(!k || !v){ alert('请填写字段名和字段值'); return; }
+      customFields.push({k,v});
+      customKey.value=''; customValue.value='';
+      renderCustomList();
+    });
+
+    // 长度滑块显示
+    if(lengthRange && lengthValue){
+      lengthValue.textContent = lengthRange.value;
+      lengthRange.addEventListener('input', ()=> lengthValue.textContent = lengthRange.value);
+    }
+
+    // 构建 profile
+    function buildProfileFromForm(){
+      return {
+        name: (inputName && inputName.value || '未命名').trim(),
+        keywords: (inputKeywords && inputKeywords.value || '').split(',').map(s=>s.trim()).filter(Boolean),
+        age: (inputAge && inputAge.value) ? Number(inputAge.value) : null,
+        gender: (inputGender && inputGender.value || '').trim(),
+        occupation: (inputOccupation && inputOccupation.value || '').trim(),
+        style: (inputStyle && inputStyle.value || '').trim(),
+        tone: (toneSelect && toneSelect.value) || 'neutral',
+        length: Number((lengthRange && lengthRange.value) || 600),
+        focus: {
+          backstory: !!(focusBackstory && focusBackstory.checked),
+          relations: !!(focusRelations && focusRelations.checked),
+          secrets: !!(focusSecrets && focusSecrets.checked),
+          appearance: !!(focusAppearance && focusAppearance.checked)
+        },
+        custom: customFields.slice(),
+        notes: (customNotes && customNotes.value || '').trim(),
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    // 保证最小长度（字符数）
+    function ensureMinLength(text, minChars, pool){
+      let out = text || '';
+      let i=0;
+      const filler = pool || [
+        '他的过去里有许多无法言说的瞬间，那些记忆像潮水一般，既冲刷又塑造了现在的他。',
+        '在无数个不眠之夜里，他一次次问自己：我要为了什么活下去？',
+        '若要描述他的灵魂，或许可以用“矛盾”来概括：既渴望被理解，又害怕被拖累。',
+        '每一次决定都带着代价，他学会了权衡与承受。',
+        '他的行动里常常带着小心的温柔，那是经历过太多苦痛后仍不肯放弃的人性光亮。'
+      ];
+      while(out.length < minChars && i < 120){
+        out += '\\n\\n' + pick(filler);
+        i++;
+      }
+      return out;
+    }
+
+    // 风格与语气
+    const styleModifiers = {
+      
+      '写实': parts => parts,
+      '奇幻': parts => { parts.splice(2,0,'魔法/异能线索：在成长过程中接触到不为人知的仪式或传承，这会引入超自然冲突。'); return parts; },
+      '玄幻': parts => { parts.push('玄幻元素：修炼、门派或灵器会贯穿人物命运。'); return parts; },
+      '悬疑': parts => { parts.push('悬疑线：故事中埋下若干疑点，主角的调查会成为推动力。'); return parts; },
+      '历史': parts => { parts.push('年代感：强调时代与家族世系，塑造权力与伦理冲突。'); return parts; },
+      '科幻': parts => { parts.push('科技关联：可能涉及义体改造、基因或太空殖民等科技元素。'); return parts; },
+      '蒸汽朋克': parts => { parts.push('蒸汽朋克：齿轮、蒸汽与复古机械是世界观装饰。'); return parts; },
+      '黑暗幻想': parts => { parts.push('黑暗元素：道德模糊与恐惧试炼，人物接受沉重代价。'); return parts; },
+      '喜剧': parts => { parts.push('喜剧风：更多幽默描写与轻松冲突。'); return parts; }
+    };
+    const toneTemplates = {
+      serious: s => s,
+      neutral: s => s,
+      playful: s => s.replace(/。/g,'！'),
+      melancholic: s => s
+    };
+
+    // 组装长文
+    function narrative(profile){
+      const place = pick(birthPlaces);
+      const family = pick(familyNotes);
+      const incident = pick(incitingEvents);
+      const per = pick(personalityBits);
+      const skill = pick(skillsList);
+      const appear = pick(appearanceBits);
+      const rel = pick(relations);
+      const secret = pick(secrets);
+
+      const name = profile.name || '某人';
+      const style = profile.style || '写实';
+      const kw = (profile.keywords && profile.keywords.length) ? profile.keywords.join('，') : '无明显关键词';
+      const occ = profile.occupation || '无职业设定';
+
+      let parts = [];
+      parts.push(`${name} · ${style}`);
+      if(profile.focus.backstory) parts.push(`出生与成长：${name} 出生在 ${place}，${family}。童年并不平静，早年的转折是：${incident}，这件事深刻影响了他/她的价值观与选择。`);
+      parts.push(`经历与转折：在曲折的路途中，${name} 学会了生存与适应，并掌握了 ${skill}。这些经历既让他/她变得坚韧，也在性格中留下了痕迹。`);
+      if(profile.focus.appearance) parts.push(`外貌与标志：${appear}。这些细节常常成为辨认他/她身份的线索。`);
+      if(profile.focus.relations) parts.push(`重要关系：${name} 与世界的牵连包括：${rel}。这些关系既能成为动力，也可能引发冲突。`);
+      if(profile.focus.secrets) parts.push(`秘密与矛盾：${name} 的内心藏着秘密：${secret}。在剧情推进中，这既是弱点也是推动力。`);
+      parts.push(`性格与动机：从性格上看，${name} ${per}。关键词：${kw}。他/她常被内心的某个目标驱使：复仇、救赎或寻找真相。`);
+      parts.push(`现在与目标：现在的 ${name} 正在朝着目标前进：${occ} 或追寻内心的和解。`);
+
+      if(profile.custom && profile.custom.length){
+        const lines = profile.custom.map(c=>`${c.k}：${c.v}`);
+        parts.push(`额外设定：${lines.join('；')}`);
+      }
+      if(profile.notes) parts.push(`创作笔记：${profile.notes}`);
+
+      const modifier = styleModifiers[style] || (p=>p);
+      parts = modifier(parts, profile);
+
+      let text = parts.join('\\n\\n');
+      const toneFn = toneTemplates[profile.tone] || (s=>s);
+      text = toneFn(text);
+      text = ensureMinLength(text, profile.length || 500);
+      return text;
+    }
+
+    // render
+    function renderProfile(profile){
+      const text = narrative(profile);
+      narrativeEl.textContent = text;
+      if(jsonOutput) jsonOutput.textContent = JSON.stringify(profile, null, 2);
+    }
+
+    // storage
+    function loadLibrary(){
+      try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
+    }
+    function saveLibrary(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+
+    function refreshLibraryUI(){
+      if(!profilesList) return;
+      const list = loadLibrary();
+      if(!list.length){ profilesList.innerHTML = '<div class=\"hint\">暂无已保存的人设。</div>'; return; }
+      profilesList.innerHTML = '';
+      list.slice().reverse().forEach((p, idx)=>{
+        const div = document.createElement('div'); div.className='item';
+        const meta = document.createElement('div');
+        meta.innerHTML = `<div><strong>${escapeHtml(p.name||'未命名')}</strong></div><div class=\"meta\">${escapeHtml(p.occupation||'')} · ${escapeHtml(p.style||'')} · ${p.createdAt ? new Date(p.createdAt).toLocaleString() : ''}</div>`;
+        const actions = document.createElement('div');
+        const btnLoad = document.createElement('button'); btnLoad.textContent='加载'; btnLoad.className='btn ghost';
+        btnLoad.onclick = ()=>{ renderProfile(p); populateForm(p); };
+        const btnDelete = document.createElement('button'); btnDelete.textContent='删除'; btnDelete.className='btn';
+        btnDelete.onclick = ()=>{
+          if(!confirm('确认删除该人设？')) return;
+          const orig = loadLibrary(); orig.splice(orig.length-1-idx,1); saveLibrary(orig); refreshLibraryUI();
+        };
+        actions.appendChild(btnLoad); actions.appendChild(btnDelete);
+        div.appendChild(meta); div.appendChild(actions);
+        profilesList.appendChild(div);
+      });
+    }
+
+    function populateForm(p){
+      if(!p) return;
+      if(inputName) inputName.value = p.name || '';
+      if(inputKeywords) inputKeywords.value = (p.keywords||[]).join(', ');
+      if(inputAge) inputAge.value = p.age || '';
+      if(inputGender) inputGender.value = p.gender || '';
+      if(inputOccupation) inputOccupation.value = p.occupation || '';
+      if(inputStyle) inputStyle.value = p.style || '写实';
+      if(toneSelect) toneSelect.value = p.tone || 'neutral';
+      if(lengthRange){ lengthRange.value = p.length || 600; lengthValue.textContent = lengthRange.value; }
+      if(focusBackstory) focusBackstory.checked = p.focus ? !!p.focus.backstory : true;
+      if(focusRelations) focusRelations.checked = p.focus ? !!p.focus.relations : true;
+      if(focusSecrets) focusSecrets.checked = p.focus ? !!p.focus.secrets : true;
+      if(focusAppearance) focusAppearance.checked = p.focus ? !!p.focus.appearance : true;
+      customFields = (p.custom && p.custom.slice()) || [];
+      renderCustomList();
+      if(customNotes) customNotes.value = p.notes || '';
+    }
+
+    // event bindings
+    if(btnRandom) btnRandom.addEventListener('click', ()=>{
+      const s = sampleRandom();
+      populateForm(s);
+      renderProfile(buildProfileFromForm());
+    });
+
+    if(btnGenerate) btnGenerate.addEventListener('click', ()=>{
+      try{
+        const profile = buildProfileFromForm();
+        renderProfile(profile);
+      }catch(e){
+        console.error(e);
+        narrativeEl.textContent = '生成发生错误：' + (e && e.message ? e.message : String(e));
+      }
+    });
+
+    if(btnSave) btnSave.addEventListener('click', ()=>{
+      const p = buildProfileFromForm();
+      const arr = loadLibrary(); arr.push(p); saveLibrary(arr); refreshLibraryUI();
+    });
