@@ -98,7 +98,6 @@
       '为了保护他人隐瞒了真相',
       '曾为生存做出违背信念之事',
       '身体内藏别人不知道的弱点或诅咒',
-      
       '其实并非自己所说的身份',
       '曾参与过一场被封存的阴谋'
     ];
@@ -122,15 +121,15 @@
     // 自定义字段
     let customFields = [];
 
-    function escapeHtml(s){ return String(s || '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',\"'\":'&#39;'}[c])); }
+    function escapeHtml(s){ return String(s || '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
     function renderCustomList(){
       if(!customList) return;
-      if(!customFields.length){ customList.innerHTML = '<div class=\"hint\">（尚未添加）</div>'; return; }
+      if(!customFields.length){ customList.innerHTML = '<div class="hint">（尚未添加）</div>'; return; }
       customList.innerHTML = '';
       customFields.forEach((f, idx)=>{
         const div = document.createElement('div'); div.className='custom-item';
-        const left = document.createElement('div'); left.innerHTML = `<span class=\"k\">${escapeHtml(f.k)}</span>: <span class=\"v\">${escapeHtml(f.v)}</span>`;
+        const left = document.createElement('div'); left.innerHTML = `<span class="k">${escapeHtml(f.k)}</span>: <span class="v">${escapeHtml(f.v)}</span>`;
         const actions = document.createElement('div');
         const btnDel = document.createElement('button'); btnDel.textContent='删除'; btnDel.className='btn';
         btnDel.onclick = ()=>{ customFields.splice(idx,1); renderCustomList(); };
@@ -190,7 +189,7 @@
         '他的行动里常常带着小心的温柔，那是经历过太多苦痛后仍不肯放弃的人性光亮。'
       ];
       while(out.length < minChars && i < 120){
-        out += '\\n\\n' + pick(filler);
+        out += '\n\n' + pick(filler);
         i++;
       }
       return out;
@@ -198,7 +197,6 @@
 
     // 风格与语气
     const styleModifiers = {
-      
       '写实': parts => parts,
       '奇幻': parts => { parts.splice(2,0,'魔法/异能线索：在成长过程中接触到不为人知的仪式或传承，这会引入超自然冲突。'); return parts; },
       '玄幻': parts => { parts.push('玄幻元素：修炼、门派或灵器会贯穿人物命运。'); return parts; },
@@ -251,7 +249,7 @@
       const modifier = styleModifiers[style] || (p=>p);
       parts = modifier(parts, profile);
 
-      let text = parts.join('\\n\\n');
+      let text = parts.join('\n\n');
       const toneFn = toneTemplates[profile.tone] || (s=>s);
       text = toneFn(text);
       text = ensureMinLength(text, profile.length || 500);
@@ -274,12 +272,12 @@
     function refreshLibraryUI(){
       if(!profilesList) return;
       const list = loadLibrary();
-      if(!list.length){ profilesList.innerHTML = '<div class=\"hint\">暂无已保存的人设。</div>'; return; }
+      if(!list.length){ profilesList.innerHTML = '<div class="hint">暂无已保存的人设。</div>'; return; }
       profilesList.innerHTML = '';
       list.slice().reverse().forEach((p, idx)=>{
         const div = document.createElement('div'); div.className='item';
         const meta = document.createElement('div');
-        meta.innerHTML = `<div><strong>${escapeHtml(p.name||'未命名')}</strong></div><div class=\"meta\">${escapeHtml(p.occupation||'')} · ${escapeHtml(p.style||'')} · ${p.createdAt ? new Date(p.createdAt).toLocaleString() : ''}</div>`;
+        meta.innerHTML = `<div><strong>${escapeHtml(p.name||'未命名')}</strong></div><div class="meta">${escapeHtml(p.occupation||'')} · ${escapeHtml(p.style||'')} · ${p.createdAt ? new Date(p.createdAt).toLocaleString() : ''}</div>`;
         const actions = document.createElement('div');
         const btnLoad = document.createElement('button'); btnLoad.textContent='加载'; btnLoad.className='btn ghost';
         btnLoad.onclick = ()=>{ renderProfile(p); populateForm(p); };
@@ -334,3 +332,37 @@
       const p = buildProfileFromForm();
       const arr = loadLibrary(); arr.push(p); saveLibrary(arr); refreshLibraryUI();
     });
+
+    if(btnDownloadJson) btnDownloadJson.addEventListener('click', ()=>{
+      const p = buildProfileFromForm();
+      const blob = new Blob([JSON.stringify(p,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download = (p.name||'profile') + '.json'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    if(btnDownloadMd) btnDownloadMd.addEventListener('click', ()=>{
+      const p = buildProfileFromForm();
+      const md = `# ${p.name}\n\n- 职业：${p.occupation||'-'}\n- 年龄：${p.age||'-'}\n- 性别：${p.gender||'-'}\n- 风格：${p.style||'-'}\n- 关键词：${(p.keywords||[]).join('，')}\n\n## 长篇背景\n\n${narrative(p)}\n\n## 额外设定\n\n${(p.custom||[]).map(c=>`- ${c.k}：${c.v}`).join('\n')}\n\n## 创作笔记\n\n${p.notes||''}`;
+      const blob = new Blob([md],{type:'text/markdown'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=(p.name||'profile')+'.md'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    if(btnPrint) btnPrint.addEventListener('click', ()=>{ window.print(); });
+
+    if(btnDownloadAll) btnDownloadAll.addEventListener('click', ()=>{
+      const arr = loadLibrary();
+      if(!arr.length){ alert('本地库为空'); return; }
+      const blob = new Blob([JSON.stringify(arr,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='renshe-library.json'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    // boot
+    function boot(){
+      renderCustomList();
+      refreshLibraryUI();
+      const sample = { name: '示例：林月', keywords:['冷静','执着'], age:28, gender:'女', occupation:'游侠', style:'写实', tone:'neutral', length:600, focus:{backstory:true,relations:true,secrets:true,appearance:true}, custom:[], notes:'示例：角色的动机是为家族复仇。', createdAt:new Date().toISOString() };
+      renderProfile(sample);
+    }
+    boot();
+  }); // end safe
+})();
