@@ -1,4 +1,4 @@
-// 增强版人设工坊逻辑：生成不少于 500 字的长篇人物背景（中文）
+// 完整增强版：参数、风格模板、自由补充设定、保存/导出功能
 const q = s => document.querySelector(s);
 const inputName = q('#input-name');
 const inputKeywords = q('#input-keywords');
@@ -19,59 +19,31 @@ const narrativeEl = q('#narrative');
 const jsonOutput = q('#json-output');
 const profilesList = q('#profiles-list');
 
-const STORAGE_KEY = 'renshe_profiles_v1';
+const lengthRange = q('#length-range');
+const lengthValue = q('#length-value');
+const toneSelect = q('#tone');
+const focusBackstory = q('#focus-backstory');
+const focusRelations = q('#focus-relations');
+const focusSecrets = q('#focus-secrets');
+const focusAppearance = q('#focus-appearance');
 
-// 更多随机素材，丰富生成
-const birthPlaces = ['沿海小镇', '北方边城', '都会郊区', '山间村落', '王都学区', '流浪者营地', '宇宙殖民地'];
-const familyNotes = [
-  '父亲早逝，母亲独自抚养',
-  '家族中世代为铁匠/医生/学者',
-  '来自名门望族，但家道中落',
-  '父母是同行的旅人，常年不在家',
-  '被寄养在远方的亲戚家中'
-];
-const incitingEvents = [
-  '一场突如其来的火灾摧毁了他们的家',
-  '在少年时期失去挚友，从此立誓复仇',
-  '发现一本神秘手稿，改变了人生道路',
-  '目睹一个冤案，决定追寻真相',
-  '在外地经历战争/瘟疫，学会了坚韧'
-];
-const personalityBits = [
-  '冷静而敏锐，常常先观察再行动',
-  '热情且冲动，容易被感情推动',
-  '内向沉默，但在关键时刻会爆发力量',
-  '幽默风趣，善于用语言化解尴尬',
-  '理智且讲究原则，讨厌模糊地带'
-];
-const skillsList = [
-  '擅长追踪与侦查',
-  '具有医术/炼金/工匠手艺',
-  '精通剑术或射击',
-  '熟悉古文字与历史典籍',
-  '擅长社交与谈判'
-];
-const appearanceBits = [
-  '一头凌乱的黑发，一双深邃的眼睛',
-  '身材高挑，面容略带沧桑',
-  '脸上有一道不易察觉的旧疤',
-  '总穿着带有家族徽记的披风',
-  '手上常年带着一串旧念珠'
-];
-const relations = [
-  '与儿时玩伴反目成仇',
-  '与导师保持复杂的师徒关系',
-  '与某个组织有着剪不断的牵连',
-  '和家人保持疏离却又难以割舍',
-  '有一段被隐藏的爱情故事'
-];
-const secrets = [
-  '为了保护他人隐瞒了真相',
-  '曾为生存而做出违背信念的事',
-  '身体内藏有别人不知道的弱点/诅咒',
-  '其实并非自己所说的身份',
-  '曾参与过一场被封存的阴谋'
-];
+const customKey = q('#custom-key');
+const customValue = q('#custom-value');
+const btnAddCustom = q('#btn-add-custom');
+const customList = q('#custom-list');
+const customNotes = q('#custom-notes');
+
+const STORAGE_KEY = 'renshe_profiles_v2';
+
+// 基本素材
+const birthPlaces = ['沿海小镇','北方边城','都会郊区','山间村落','王都学区','流浪者营地','宇宙殖民地'];
+const familyNotes = ['父亲早逝，母亲独自抚养','家族中世代为铁匠/医生/学者','来自名门望族，但家道中落','父母是旅人，常年不在家','被寄养在远方亲戚家中'];
+const incitingEvents = ['一场突如其来的火灾摧毁了他们的家','在少年时期失去挚友，从此立誓复仇','发现一本神秘手稿，改变人生道路','目睹一个冤案，决定追寻真相','在外地经历战争/瘟疫，学会坚韧'];
+const personalityBits = ['冷静而敏锐','热情且冲动','内向沉默但关键时刻会爆发','幽默风趣','理智且讲究原则'];
+const skillsList = ['擅长追踪与侦查','具有医术/炼金/工匠手艺','精通剑术或射击','熟悉古文字与历史典籍','擅长社交与谈判'];
+const appearanceBits = ['一头凌乱的黑发，一双深邃的眼睛','身材高挑，面容略带沧桑','脸上有一道不易察觉的旧疤','总穿着带有家族徽记的披风','手上常年带着一串旧念珠'];
+const relations = ['与儿时玩伴反目成仇','与导师保持复杂师徒关系','与某组织有牵连','和家人保持疏离却难以割舍','有一段被隐藏的爱情故事'];
+const secrets = ['为了保护他人隐瞒了真相','曾为生存做出违背信念之事','身体内藏别人不知道的弱点/诅咒','其实并非自己所说的身份','曾参与过一场被封存的阴谋'];
 
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
@@ -89,6 +61,37 @@ function sampleRandom(){
   };
 }
 
+// 自定义字段管理（保存在内存直到保存到本地库）
+let customFields = [];
+
+function renderCustomList(){
+  if(!customFields.length){ customList.innerHTML = '<div class="hint">（尚未添加）</div>'; return; }
+  customList.innerHTML = '';
+  customFields.forEach((f, idx)=>{
+    const div = document.createElement('div'); div.className='custom-item';
+    const left = document.createElement('div'); left.innerHTML = `<span class="k">${escapeHtml(f.k)}</span>: <span class="v">${escapeHtml(f.v)}</span>`;
+    const actions = document.createElement('div');
+    const btnDel = document.createElement('button'); btnDel.textContent='删除'; btnDel.className='btn';
+    btnDel.onclick = ()=>{ customFields.splice(idx,1); renderCustomList(); };
+    actions.appendChild(btnDel);
+    div.appendChild(left); div.appendChild(actions);
+    customList.appendChild(div);
+  });
+}
+
+btnAddCustom.addEventListener('click', ()=>{
+  const k = (customKey.value || '').trim();
+  const v = (customValue.value || '').trim();
+  if(!k || !v){ alert('请填写字段名和字段值'); return; }
+  customFields.push({k,v});
+  customKey.value=''; customValue.value='';
+  renderCustomList();
+});
+
+// UI helpers
+lengthRange.addEventListener('input', ()=> lengthValue.textContent = lengthRange.value);
+
+// Build profile
 function buildProfileFromForm(){
   return {
     name: (inputName.value || '未命名').trim(),
@@ -97,31 +100,63 @@ function buildProfileFromForm(){
     gender: (inputGender.value||'').trim(),
     occupation: (inputOccupation.value||'').trim(),
     style: (inputStyle.value||'').trim(),
+    tone: toneSelect.value,
+    length: Number(lengthRange.value),
+    focus: {
+      backstory: focusBackstory.checked,
+      relations: focusRelations.checked,
+      secrets: focusSecrets.checked,
+      appearance: focusAppearance.checked
+    },
+    custom: customFields.slice(),
+    notes: (customNotes.value||'').trim(),
     createdAt: new Date().toISOString()
   };
 }
 
-// 保证长度至少 minChars（中文字符计数）
-function ensureMinLength(text, minChars){
-  // 若已足够，直接返回；否则循环追加素材句子直到满足
-  const pool = [
-    '他的过去里有许多无法言说的瞬间，那些记忆像潮水一般，既冲刷又塑造了现在的他。',
-    '在无数个不眠之夜里，他一次次问自己：我要为了什么活下去？',
-    '若要描述他的灵魂，或许可以用“矛盾”来概括：既渴望被理解，又害怕被拖累。',
-    '每一次决定都带着代价，他学会了权衡与承受。',
-    '他的行动里常常带着小心的温柔，那是经历过太多苦痛后仍不肯放弃的人性光亮。'
-  ];
-  let out = text;
-  let i = 0;
-  while(out.length < minChars && i < 50){
-    out += '\n\n' + pick(pool);
+// escape for safety when rendering in list
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+// Ensure min length (characters)
+function ensureMinLength(text, minChars, pool){
+  let out = text || '';
+  let i=0;
+  while(out.length < minChars && i < 80){
+    out += '\n\n' + pick(pool || [
+      '他的过去里有许多无法言说的瞬间，那些记忆像潮水一般，既冲刷又塑造了现在的他。',
+      '在无数个不眠之夜里，他一次次问自己：我要为了什么活下去？',
+      '若要描述他的灵魂，或许可以用“矛盾”来概括：既渴望被理解，又害怕被拖累。',
+      '每一次决定都带着代价，他学会了权衡与承受。',
+      '他的行动里常常带着小心的温柔，那是经历过太多苦痛后仍不肯放弃的人性光亮。'
+    ]);
     i++;
   }
   return out;
 }
 
+// 风格模板修饰器（为不同风格加入特定元素）
+const styleModifiers = {
+  '写实': (parts, profile)=>parts,
+  '奇幻': (parts, profile)=>{ parts.splice(2,0,`魔法/异能线索：在他的成长过程中，曾接触到不为人知的魔法或仪式，这为后续故事提供了超自然的冲突。`); return parts; },
+  '玄幻': (parts, profile)=>{ parts.push('玄幻元素：与修炼、门派或灵器相关的设定会贯穿其命运曲线。'); return parts; },
+  '悬疑': (parts, profile)=>{ parts.push('悬疑线：故事中埋下若干疑点，读者将会随着主角的调查逐步揭开真相。'); return parts; },
+  '历史': (parts, profile)=>{ parts.push('年代感：设定中强调时代背景与家族世系，对人际与权力结构有重要影响。'); return parts; },
+  '科幻': (parts, profile)=>{ parts.push('科技关联：可能涉及基因改造、机械义肢或宇宙殖民等科技设定。'); return parts; },
+  '蒸汽朋克': (parts, profile)=>{ parts.push('蒸汽朋克设定：齿轮、蒸汽与复古科技作为世界观装饰。'); return parts; },
+  '黑暗幻想': (parts, profile)=>{ parts.push('黑暗元素：道德模糊、丑恶与恐惧会频繁出现，角色接受沉重试炼。'); return parts; },
+  '喜剧': (parts, profile)=>{ parts.push('喜剧风：更轻松诙谐的描写，角色缺点常被幽默化。'); return parts; }
+};
+
+// 根据语气调整句式（小幅度）
+const toneTemplates = {
+  serious: s=>s.replace(/。/g,'。').replace(/，/g,'，'),
+  neutral: s=>s,
+  playful: s=>s.replace(/。/g,'！').replace(/，/g,'，'),
+  melancholic: s=>s.replace(/。/g,'。').replace(/，/g,'，')
+};
+
+// narrative builder: assemble multi-part long text, include custom fields & notes
 function narrative(profile){
-  // 生成多段结构化长文
   const place = pick(birthPlaces);
   const family = pick(familyNotes);
   const incident = pick(incitingEvents);
@@ -138,38 +173,53 @@ function narrative(profile){
   const occ = profile.occupation || '无职业设定';
 
   let parts = [];
-
   parts.push(`${name} · ${style}`);
-  parts.push(`出生与成长：${name} 出生在 ${place}，${family}。童年并不平静，周围的人和环境将他/她逐步塑造成一个沉默而警觉的人。在早年的经历中，${incident}，这成为他/她人生的转折点。`);
-  parts.push(`经历与转折：那次事件之后，${name} 被迫离开熟悉的环境，学会了独立与自救。为了生存，他/她学会了 ${skill}，并在实践中不断磨砺技艺与心智。道路并非坦途，反而由此结识了几位关键人物，这些人既可能是盟友，也可能成为日后的敌人。`);
-  parts.push(`性格与动机：从性格上看，${name} ${per}。关键词：${kw}。他/她的内心有一股不肯妥协的意志，驱使着他/她去追求某个明确的目标（或复仇、或救赎、或探寻真相）。在社交场合，表面冷静的外衣下常藏着复杂的情绪。`);
-  parts.push(`外貌与标志：${appear}。这些外观特征让他/她在众人中易于辨识，也常常成为他/她身份与过去的线索。`);
-  parts.push(`重要关系：${name} 与他/她的世界有着复杂的牵连：${rel}。这些关系既推动剧情发展，也为人物增加了道德与情感的冲突，使其更具立体感。`);
-  parts.push(`秘密与矛盾：最大的秘密是，${secret}。这个秘密既是弱点，也是推动角色成长的内在矛盾，在关键时刻可能改变故事的走向。`);
-  parts.push(`现在与目标：现在的 ${name} 正朝着一个明确的方向前进：${profile.occupation ? '以“' + profile.occupation + '”的身份履行自己的职责' : '寻求答案与和解'}。他/她的目标既包含外在的实务任务，也承载着内心的救赎欲望。`);
-  parts.push(`结语：${name} 的故事还未结束，更多的篇章将由他/她的选择与遭遇书写——每一次决定都可能使命运发生偏移，而读者将看到一个在伤痕与希望中不断前行的人物。`);
+  if(profile.focus.backstory) parts.push(`出生与成长：${name} 出生在 ${place}，${family}。童年并不平静，周遭环境塑造了他/她对世界的基本看法。早年的转折是：${incident}，这件事深刻影响了他/她的价值观与选择。`);
+  parts.push(`经历与转折：在曲折的路途中，${name} 学会了生存与适应，并掌握了 ${skill}。这些经历既让他/她变得坚韧，也在性格中留下了难以抹去的痕迹。`);
+  if(profile.focus.appearance) parts.push(`外貌与标志：${appear}。这些细节常常成为辨认他/她身份的关键，也常在故事中触发回忆或误会。`);
+  if(profile.focus.relations) parts.push(`重要关系：${name} 与世界有着复杂牵连：${rel}。这些关系既可能成为动力，也可能引发冲突。`);
+  if(profile.focus.secrets) parts.push(`秘密与矛盾：${name} 的内心藏着难以对外言说的秘密：${secret}。在剧情推进中，这个秘密会是弱点也是推动力。`);
+  parts.push(`性格与动机：从性格上看，${name} ${per}。关键词：${kw}。他/她常被内心的某个目标驱使：可能是复仇、救赎或寻找某个真相。`);
+  parts.push(`现在与目标：现在的 ${name} 正在朝着自己的目标前进：${profile.occupation ? '以“' + profile.occupation + '”的角色参与世界' : '寻求答案与和解'}。未来的道路充满试炼，但也有希望。`);
 
+  // 将自定义字段整合进“额外设定”
+  if(profile.custom && profile.custom.length){
+    const lines = profile.custom.map(c=>`${c.k}：${c.v}`);
+    parts.push(`额外设定：${lines.join('；')}`);
+  }
+
+  if(profile.notes){
+    parts.push(`创作笔记：${profile.notes}`);
+  }
+
+  // apply style modifier
+  const modifier = styleModifiers[style] || ( (p,a)=>p );
+  parts = modifier(parts, profile);
+
+  // join
   let text = parts.join('\n\n');
 
-  // 确保不少于 500 个中文字符（约 500 字）
-  text = ensureMinLength(text, 500);
+  // apply tone
+  const toneFn = toneTemplates[profile.tone] || (s=>s);
+  text = toneFn(text);
+
+  // ensure required length
+  text = ensureMinLength(text, profile.length || 500);
 
   return text;
 }
 
+// render
 function renderProfile(profile){
   const text = narrative(profile);
   narrativeEl.textContent = text;
   jsonOutput.textContent = JSON.stringify(profile, null, 2);
 }
 
+// storage
 function loadLibrary(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  }catch(e){return [];}
+  try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
 }
-
 function saveLibrary(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
 
 function refreshLibraryUI(){
@@ -178,7 +228,7 @@ function refreshLibraryUI(){
   profilesList.innerHTML = '';
   list.slice().reverse().forEach((p, idx)=>{
     const div = document.createElement('div'); div.className='item';
-    const meta = document.createElement('div'); meta.innerHTML = `<div><strong>${p.name}</strong></div><div class="meta">${p.occupation || ''} · ${p.style || ''} · ${p.createdAt ? new Date(p.createdAt).toLocaleString() : ''}</div>`;
+    const meta = document.createElement('div'); meta.innerHTML = `<div><strong>${escapeHtml(p.name||'未命名')}</strong></div><div class="meta">${escapeHtml(p.occupation||'')} · ${escapeHtml(p.style||'')} · ${p.createdAt ? new Date(p.createdAt).toLocaleString() : ''}</div>`;
     const actions = document.createElement('div');
     const btnLoad = document.createElement('button'); btnLoad.textContent='加载'; btnLoad.className='btn ghost';
     btnLoad.onclick = ()=>{ renderProfile(p); populateForm(p); };
@@ -187,68 +237,4 @@ function refreshLibraryUI(){
       if(!confirm('确认删除该人设？')) return;
       const orig = loadLibrary(); orig.splice(orig.length-1-idx,1); saveLibrary(orig); refreshLibraryUI();
     };
-    actions.appendChild(btnLoad); actions.appendChild(btnDelete);
-    div.appendChild(meta); div.appendChild(actions);
-    profilesList.appendChild(div);
-  });
-}
-
-function populateForm(p){
-  inputName.value = p.name || '';
-  inputKeywords.value = (p.keywords||[]).join(', ');
-  inputAge.value = p.age || '';
-  inputGender.value = p.gender || '';
-  inputOccupation.value = p.occupation || '';
-  inputStyle.value = p.style || '写实';
-}
-
-btnRandom.addEventListener('click', ()=>{
-  const s = sampleRandom();
-  populateForm(s);
-  renderProfile(buildProfileFromForm());
-});
-
-btnGenerate.addEventListener('click', ()=>{
-  const p = buildProfileFromForm();
-  renderProfile(p);
-});
-
-btnSave.addEventListener('click', ()=>{
-  const p = buildProfileFromForm();
-  const arr = loadLibrary();
-  arr.push(p);
-  saveLibrary(arr);
-  refreshLibraryUI();
-  alert('已保存到本地库');
-});
-
-btnDownloadJson.addEventListener('click', ()=>{
-  const p = buildProfileFromForm();
-  const blob = new Blob([JSON.stringify(p,null,2)],{type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download = (p.name||'profile') + '.json'; a.click(); URL.revokeObjectURL(url);
-});
-
-btnDownloadMd.addEventListener('click', ()=>{
-  const p = buildProfileFromForm();
-  const md = `# ${p.name}\n\n- 职业：${p.occupation||'-'}\n- 年龄：${p.age||'-'}\n- 性别：${p.gender||'-'}\n- 风格：${p.style||'-'}\n- 关键词：${(p.keywords||[]).join('，')}\n\n## 简介\n\n${narrative(p)}\n`;
-  const blob = new Blob([md],{type:'text/markdown'});
-  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=(p.name||'profile')+'.md'; a.click(); URL.revokeObjectURL(url);
-});
-
-btnPrint.addEventListener('click', ()=>{ window.print(); });
-
-btnDownloadAll.addEventListener('click', ()=>{
-  const arr = loadLibrary();
-  if(!arr.length){ alert('本地库为空'); return; }
-  const blob = new Blob([JSON.stringify(arr,null,2)],{type:'application/json'});
-  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='renshe-library.json'; a.click(); URL.revokeObjectURL(url);
-});
-
-function init(){
-  refreshLibraryUI();
-  // Render a default sample
-  const sample = { name: '示例：林月', keywords:['冷静','执着'], age:28, gender:'女', occupation:'游侠', style:'写实', createdAt:new Date().toISOString() };
-  renderProfile(sample);
-}
-init();
+    
