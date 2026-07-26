@@ -1,41 +1,3 @@
-// 完整增强版（修复版）：参数、风格模板、自由补充设定、保存/导出功能
-// 包裹 DOMContentLoaded，增加错误显示，初始化长度显示
-(function () {
-  'use strict';
-
-  function safe(fn){
-    try{ fn(); }catch(e){
-      console.error(e);
-      const out = document.getElementById('narrative');
-      if(out) out.textContent = '脚本加载错误：' + (e && e.message ? e.message : String(e)) + '\n请把这段错误信息发给我。';
-    }
-  }
-
-  safe(function initAll(){
-    // DOM elements
-    const q = s => document.querySelector(s);
-    const inputName = q('#input-name');
-    const inputKeywords = q('#input-keywords');
-    const inputAge = q('#input-age');
-    const inputGender = q('#input-gender');
-    const inputOccupation = q('#input-occupation');
-    const inputStyle = q('#input-style');
-
-    const btnGenerate = q('#btn-generate');
-    const btnSave = q('#btn-save');
-    const btnRandom = q('#btn-random');
-    const btnDownloadJson = q('#btn-download-json');
-    const btnDownloadMd = q('#btn-download-md');
-    const btnPrint = q('#btn-print');
-    const btnDownloadAll = q('#btn-download-all');
-
-    const narrativeEl = q('#narrative');
-    const jsonOutput = q('#json-output');
-    const profilesList = q('#profiles-list');
-
-    const lengthRange = q('#length-range');
-    const lengthValue = q('#length-value');
-    const toneSelect = q('#tone');
     const focusBackstory = q('#focus-backstory');
     const focusRelations = q('#focus-relations');
     const focusSecrets = q('#focus-secrets');
@@ -251,4 +213,78 @@
           if(!confirm('确认删除该人设？')) return;
           const orig = loadLibrary(); orig.splice(orig.length-1-idx,1); saveLibrary(orig); refreshLibraryUI();
         };
-        actions.appendChild(btnLoad); 
+        actions.appendChild(btnLoad); actions.appendChild(btnDelete);
+        div.appendChild(meta); div.appendChild(actions);
+        profilesList.appendChild(div);
+      });
+    }
+
+    function populateForm(p){
+      if(!p) return;
+      if(inputName) inputName.value = p.name || '';
+      if(inputKeywords) inputKeywords.value = (p.keywords||[]).join(', ');
+      if(inputAge) inputAge.value = p.age || '';
+      if(inputGender) inputGender.value = p.gender || '';
+      if(inputOccupation) inputOccupation.value = p.occupation || '';
+      if(inputStyle) inputStyle.value = p.style || '写实';
+      if(toneSelect) toneSelect.value = p.tone || 'neutral';
+      if(lengthRange){ lengthRange.value = p.length || 600; lengthValue.textContent = lengthRange.value; }
+      if(focusBackstory) focusBackstory.checked = p.focus ? !!p.focus.backstory : true;
+      if(focusRelations) focusRelations.checked = p.focus ? !!p.focus.relations : true;
+      if(focusSecrets) focusSecrets.checked = p.focus ? !!p.focus.secrets : true;
+      if(focusAppearance) focusAppearance.checked = p.focus ? !!p.focus.appearance : true;
+      customFields = (p.custom && p.custom.slice()) || [];
+      renderCustomList();
+      if(customNotes) customNotes.value = p.notes || '';
+    }
+
+    // event bindings (guarded)
+    if(btnRandom) btnRandom.addEventListener('click', ()=>{
+      const s = sampleRandom();
+      populateForm(s);
+      renderProfile(buildProfileFromForm());
+    });
+    if(btnGenerate) btnGenerate.addEventListener('click', ()=>{
+      try{
+        const profile = buildProfileFromForm();
+        renderProfile(profile);
+      }catch(e){
+        console.error(e);
+        narrativeEl.textContent = '生成发生错误：' + (e.message || e);
+      }
+    });
+    if(btnSave) btnSave.addEventListener('click', ()=>{
+      const p = buildProfileFromForm();
+      const arr = loadLibrary(); arr.push(p); saveLibrary(arr); refreshLibraryUI();
+      alert('已保存到本地库');
+    });
+    if(btnDownloadJson) btnDownloadJson.addEventListener('click', ()=>{
+      const p = buildProfileFromForm();
+      const blob = new Blob([JSON.stringify(p,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download = (p.name||'profile') + '.json'; a.click(); URL.revokeObjectURL(url);
+    });
+    if(btnDownloadMd) btnDownloadMd.addEventListener('click', ()=>{
+      const p = buildProfileFromForm();
+      const md = `# ${p.name}\n\n- 职业：${p.occupation||'-'}\n- 年龄：${p.age||'-'}\n- 性别：${p.gender||'-'}\n- 风格：${p.style||'-'}\n- 关键词：${(p.keywords||[]).join('，')}\n\n## 长篇背景\n\n${narrative(p)}\n\n## 额外设定\n\n${(p.custom||[]).map(c=>`- ${c.k}：${c.v}`).join('\n')}\n\n## 创作笔记\n\n${p.notes||''}`;
+      const blob = new Blob([md],{type:'text/markdown'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=(p.name||'profile')+'.md'; a.click(); URL.revokeObjectURL(url);
+    });
+    if(btnPrint) btnPrint.addEventListener('click', ()=>{ window.print(); });
+    if(btnDownloadAll) btnDownloadAll.addEventListener('click', ()=>{
+      const arr = loadLibrary();
+      if(!arr.length){ alert('本地库为空'); return; }
+      const blob = new Blob([JSON.stringify(arr,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='renshe-library.json'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    // init UI & sample
+    function boot(){
+      renderCustomList();
+      refreshLibraryUI();
+      const sample = { name: '示例：林月', keywords:['冷静','执着'], age:28, gender:'女', occupation:'游侠', style:'写实', tone:'neutral', length:600, focus:{backstory:true,relations:true,secrets:true,appearance:true}, custom:[], notes:'示例：角色的动机是为家族复仇。', createdAt:new Date().toISOString() };
+      renderProfile(sample);
+    }
+    boot();
+  }); // end safe
+})();
