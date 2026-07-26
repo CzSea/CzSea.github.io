@@ -3,6 +3,6 @@
   "short_name": "人设工坊",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f3f7fb",
+  "background_color": "#f7f9ff",
   "theme_color": "#7c5cff"
 }
