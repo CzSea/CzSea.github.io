@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>人设工坊 · 残烛海</title>
+  <meta name="description" content="人设工坊 — 为作家与创作者快速生成可用的人物设定与长篇背景，支持多风格与可调参数。" />
+  <meta property="og:title" content="人设工坊 · 残烛海" />
+  <meta property="og:description" content="生成长篇人物背景（可选字数、风格与语气），并支持自由补充设定与本地保存。" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='12' fill='%237c5cff'/%3E%3Ctext x='50' y='56' font-size='48' text-anchor='middle' fill='white' font-family='sans-serif'%3E人%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="app.css">
   <link rel="manifest" href="manifest.json">
 </head>
@@ -11,9 +15,18 @@
   <div class="wrap">
     <header class="topbar">
       <div class="brand">
-        <strong>人设工坊</strong>
-        <span class="sub">残烛海 · 模板版（已增强剧情输出）</span>
+        <div class="logo" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img">
+            <rect rx="8" width="48" height="48" fill="#7c5cff"/>
+            <text x="24" y="30" font-size="20" fill="#fff" font-family="sans-serif" text-anchor="middle">人</text>
+          </svg>
+        </div>
+        <div>
+          <strong>人设工坊</strong>
+          <div class="sub">残烛海 · 模板增强版（可自定义）</div>
+        </div>
       </div>
+
       <div class="ctas">
         <button id="btn-random" class="btn">随机示例</button>
         <button id="btn-download-all" class="btn ghost">导出全库（JSON）</button>
@@ -31,36 +44,65 @@
           <label>职业 <input id="input-occupation" placeholder="游侠 / 侦探 / 学者"></label>
           <label>风格
             <select id="input-style">
-              <option>写实</option>
-              <option>奇幻</option>
-              <option>现代浪漫</option>
-              <option>玄幻</option>
-              <option>悬疑</option>
-              <option>历史</option>
-              <option>科幻</option>
-              <option>蒸汽朋克</option>
-              <option>黑暗幻想</option>
-              <option>喜剧</option>
-              <option>悲剧</option>
+              <option>写实</option><option>奇幻</option><option>现代浪漫</option><option>玄幻</option><option>悬疑</option>
+              <option>历史</option><option>科幻</option><option>蒸汽朋克</option><option>黑暗幻想</option><option>喜剧</option>
             </select>
           </label>
         </div>
 
+        <!-- 参数面板 -->
+        <div class="params">
+          <label class="length-row">长度
+            <input id="length-range" type="range" min="300" max="1500" step="50" value="600">
+            <div class="param-value"><span id="length-value">600</span> 字</div>
+          </label>
+
+          <label>语气
+            <select id="tone">
+              <option value="serious">沉稳 / 严肃</option>
+              <option value="neutral" selected>中性</option>
+              <option value="playful">轻松 / 幽默</option>
+              <option value="melancholic">哀伤 / 沉郁</option>
+            </select>
+          </label>
+
+          <div class="checkboxes">
+            <label><input type="checkbox" id="focus-backstory" checked> 包含成长经历</label>
+            <label><input type="checkbox" id="focus-relations" checked> 包含重要关系</label>
+            <label><input type="checkbox" id="focus-secrets" checked> 包含秘密 / 内心矛盾</label>
+            <label><input type="checkbox" id="focus-appearance" checked> 包含外貌与标志</label>
+          </div>
+        </div>
+
+        <!-- 自由补充设定 -->
+        <div class="custom-panel">
+          <h3>自由补充设定（可添加任意键值对 / 笔记 / 能力 / 物品）</h3>
+          <div class="custom-controls">
+            <input id="custom-key" placeholder="字段名（例：信物 / 力量 / 身份）">
+            <input id="custom-value" placeholder="字段值（例：旧怀表 / 火焰掌控 / 贵族私生子）">
+            <button id="btn-add-custom" class="btn">添加</button>
+          </div>
+          <div id="custom-list" class="custom-list">（尚未添加）</div>
+
+          <label style="margin-top:8px">创作笔记（自由文本）
+            <textarea id="custom-notes" placeholder="在这里写下你想补充的任何背景、台词或设定说明" rows="4"></textarea>
+          </label>
+        </div>
+
         <div class="actions">
-          <button id="btn-generate" class="btn primary">生成人设（长篇背景 ≥500字）</button>
+          <button id="btn-generate" class="btn primary">生成人设（长篇背景）</button>
           <button id="btn-save" class="btn">保存到本地库</button>
           <button id="btn-download-json" class="btn ghost">下载 JSON</button>
           <button id="btn-download-md" class="btn ghost">下载 Markdown</button>
           <button id="btn-print" class="btn ghost">打印 / 保存为 PDF</button>
         </div>
-        <div style="margin-top:8px;color:#666;font-size:13px">
-          提示：生成的背景会尽量详细（包含成长、转折、性格、外貌、重要关系、秘密与目标）。若想更改长度或风格，请在关键词或风格中说明。
-        </div>
+
+        <div class="hint">提示：自定义字段会被整合在“额外设定”段落，创作笔记会原样追加到文末，便于你继续修改与扩展。</div>
       </section>
 
       <section class="panel output-panel" id="output-section" aria-live="polite">
         <h2>生成结果</h2>
-        <article id="narrative" class="narrative">点击“生成人设（长篇背景 ≥500字）”查看结果。</article>
+        <article id="narrative" class="narrative">点击“生成人设（长篇背景）”查看结果。</article>
 
         <details class="json-box">
           <summary>结构化 JSON（可复制）</summary>
@@ -68,15 +110,15 @@
         </details>
       </section>
 
-      <section class="panel library-panel">
+      <aside class="panel library-panel">
         <h2>本地人设库</h2>
         <div id="profiles-list" class="list">暂无已保存的人设。</div>
         <div class="hint">保存于浏览器（localStorage），换设备或清除浏览数据会丢失。若需云端保存可后续升级。</div>
-      </section>
+      </aside>
     </main>
 
     <footer class="footer">
-      © 残烛海 · 人设工坊
+      © 残烛海 · 人设工坊（模板） — 需要我代为接入云端或 AI 生成请告知仓库名与需求。
     </footer>
   </div>
 
